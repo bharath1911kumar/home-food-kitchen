@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home Food Cloud Kitchen</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet (Map) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1> Sri lakshmi Home Food Cloud Kitchen</h1>
+      <p>Fresh homemade Idly, Puttu, Poori, Dosai, Vada & more</p>
+    </div>
+    <div class="app-header-meta">
+      <span class="badge">Live POS</span>
+      <span class="meta-line">Today: <span id="current-date"></span></span>
+    </div>
+  </header>
+
+  <nav class="app-nav">
+    <button class="nav-tab active" data-target="order-view">Order</button>
+    <button class="nav-tab" data-target="reports-view">Reports</button>
+    <button class="nav-tab" data-target="menu-view">Menu Management</button>
+  </nav>
+
+  <main class="app-main">
+    <!-- ORDER VIEW -->
+    <section id="order-view" class="view active">
+      <div class="order-layout">
+        <!-- Menu column -->
+        <div class="menu-column">
+          <div class="panel-header">
+            <h2>Menu</h2>
+          </div>
+          <div id="menu-list" class="menu-list">
+            <!-- Menu cards rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Cart + details column -->
+        <div class="cart-column">
+          <div class="panel-header">
+            <h2>Cart &amp; Billing</h2>
+          </div>
+
+          <section class="address-panel">
+            <h3>Customer &amp; Address</h3>
+            <div class="address-grid">
+              <label>
+                Name
+                <input type="text" id="cust-name" placeholder="Customer name" />
+              </label>
+              <label>
+                Phone
+                <input type="tel" id="cust-phone" placeholder="10-digit number" />
+              </label>
+              <label class="wide">
+                Flat / House
+                <input type="text" id="cust-flat" placeholder="House / Flat no." />
+              </label>
+              <label class="wide">
+                Street
+                <input type="text" id="cust-street" placeholder="Street" />
+              </label>
+              <label>
+                Area
+                <input type="text" id="cust-area" placeholder="Area" />
+              </label>
+              <label>
+                City
+                <input type="text" id="cust-city" placeholder="City" />
+              </label>
+              <label>
+                Pincode
+                <input type="text" id="cust-pincode" placeholder="Pincode" />
+              </label>
+            </div>
+            <div class="location-actions">
+              <button id="btn-use-location" type="button">Use my location</button>
+              <button id="btn-choose-on-map" type="button">Choose on map</button>
+              <span id="location-status" class="meta-line"></span>
+            </div>
+          </section>
+
+          <section class="cart-panel">
+            <div class="cart-table-wrapper">
+              <table class="cart-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="cart-body">
+                  <!-- Cart rows rendered by JS -->
+                </tbody>
+              </table>
+              <div id="empty-cart-msg" class="empty-state">Cart is empty. Tap a menu item to add.</div>
+            </div>
+
+            <div class="bill-summary">
+              <div class="bill-line">
+                <span>Subtotal</span>
+                <span id="bill-subtotal">₹0.00</span>
+              </div>
+              <div class="bill-line">
+                <span>Tax (0%)</span>
+                <span id="bill-tax">₹0.00</span>
+              </div>
+              <div class="bill-line bill-total">
+                <span>Total</span>
+                <span id="bill-total">₹0.00</span>
+              </div>
+            </div>
+
+            <div class="cart-actions">
+              <button id="btn-clear-cart" type="button" class="secondary">Clear cart</button>
+              <span class="spacer"></span>
+              <button id="btn-pay-now" type="button">Pay now (QR)</button>
+              <button id="btn-save-order" type="button" class="primary">Save &amp; Print bill</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS VIEW -->
+    <section id="reports-view" class="view">
+      <div class="panel-header">
+        <h2>Monthly Sales Report</h2>
+      </div>
+
+      <div class="filters-row">
+        <label>
+          Month
+          <select id="report-month"></select>
+        </label>
+        <label>
+          Year
+          <select id="report-year"></select>
+        </label>
+        <button id="btn-refresh-report" type="button">Refresh</button>
+      </div>
+
+      <div class="report-summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Total Orders</div>
+          <div id="summary-total-orders" class="summary-value">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Revenue</div>
+          <div id="summary-total-revenue" class="summary-value">₹0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Top Item</div>
+          <div id="summary-top-item" class="summary-value">-</div>
+        </div>
+      </div>
+
+      <h3>Orders</h3>
+      <div class="table-wrapper">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Order ID</th>
+              <th>Items</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="report-orders-body">
+            <!-- Filled by JS -->
+          </tbody>
+        </table>
+        <div id="report-empty-msg" class="empty-state">No orders for this month.</div>
+      </div>
+    </section>
+
+    <!-- MENU MANAGEMENT VIEW -->
+    <section id="menu-view" class="view">
+      <div class="panel-header">
+        <h2>Menu Management</h2>
+      </div>
+
+      <section class="menu-form-section">
+        <h3>Add / Edit Item</h3>
+        <form id="menu-form">
+          <input type="hidden" id="menu-item-id" />
+          <div class="form-grid">
+            <label>
+              Name
+              <input type="text" id="menu-name" required />
+            </label>
+            <label>
+              Price (₹)
+              <input type="number" id="menu-price" min="0" step="1" required />
+            </label>
+            <label>
+              Category
+              <input type="text" id="menu-category" placeholder="Breakfast, Snacks..." />
+            </label>
+            <label class="wide">
+              Image URL / Path
+              <input type="text" id="menu-image" placeholder="img/idly.jpg" />
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="menu-available" checked />
+              <span>Available</span>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="primary" id="btn-save-menu-item">Save item</button>
+            <button type="button" id="btn-reset-menu-form" class="secondary">Reset</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="menu-table-section">
+        <h3>Current Menu</h3>
+        <div class="table-wrapper">
+          <table class="menu-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Available</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="menu-manage-body">
+              <!-- Filled by JS -->
+            </tbody>
+          </table>
+          <div id="menu-empty-msg" class="empty-state">No menu items configured.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- QR MODAL -->
+  <div id="qr-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="qr-modal"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Scan &amp; Pay</h3>
+        <button class="icon-button" data-close="qr-modal">&times;</button>
+      </div>
+      <div class="modal-body qr-body">
+        <img src="img/upi-qr-placeholder.png" alt="UPI QR" class="qr-image" />
+        <p class="meta-line">Show this QR to the customer to scan and pay.</p>
+        <p class="meta-line" id="qr-amount-line">Amount: ₹0.00</p>
+        <p class="meta-line">UPI ID: <span id="upi-id-text">your-upi-id@bank</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP MODAL -->
+  <div id="map-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="map-modal"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Select delivery location</h3>
+        <button class="icon-button" data-close="map-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="map" class="map-container"></div>
+        <p class="meta-line">Tap on the map to set delivery location.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIDDEN BILL FOR PRINT -->
+  <section id="print-bill" class="print-bill">
+    <h2>Home Food Cloud Kitchen</h2>
+    <p id="print-bill-meta"></p>
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="print-bill-body"></tbody>
+    </table>
+    <div class="print-totals">
+      <div><span>Subtotal:</span> <span id="print-subtotal"></span></div>
+      <div><span>Tax (0%):</span> <span id="print-tax"></span></div>
+      <div class="bill-total"><span>Total:</span> <span id="print-total"></span></div>
+    </div>
+    <div class="print-address">
+      <h3>Delivery To</h3>
+      <p id="print-address-text"></p>
+    </div>
+  </section>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
