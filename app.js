@@ -60,6 +60,7 @@ function getDefaultMenu() {
       name: "Idly",
       price: 10,
       category: "Breakfast",
+      foodType: "veg",
       image: "img/idly.jpg",
       isAvailable: true,
     },
@@ -68,6 +69,7 @@ function getDefaultMenu() {
       name: "Puttu",
       price: 25,
       category: "Breakfast",
+      foodType: "veg",
       image: "img/puttu.jpg",
       isAvailable: true,
     },
@@ -76,6 +78,7 @@ function getDefaultMenu() {
       name: "Poori",
       price: 30,
       category: "Breakfast",
+      foodType: "veg",
       image: "img/poori.jpg",
       isAvailable: true,
     },
@@ -84,6 +87,7 @@ function getDefaultMenu() {
       name: "Dosai",
       price: 35,
       category: "Breakfast",
+      foodType: "veg",
       image: "img/dosai.jpg",
       isAvailable: true,
     },
@@ -92,6 +96,7 @@ function getDefaultMenu() {
       name: "Vada",
       price: 8,
       category: "Snacks",
+      foodType: "veg",
       image: "img/vada.jpg",
       isAvailable: true,
     },
@@ -100,6 +105,7 @@ function getDefaultMenu() {
       name: "Pazham Pori",
       price: 20,
       category: "Snacks",
+      foodType: "veg",
       image: "img/pazham-pori.jpg",
       isAvailable: true,
     },
@@ -108,19 +114,34 @@ function getDefaultMenu() {
       name: "Coffee",
       price: 15,
       category: "Beverage",
+      foodType: "veg",
       image: "img/coffee.jpg",
       isAvailable: true,
     },
   ];
 }
 
+function normalizeFoodType(value) {
+  return value === "non-veg" ? "non-veg" : "veg";
+}
+
+function getActiveFoodTypeFilter() {
+  const activeBtn = document.querySelector(".type-filter-btn.active");
+  if (activeBtn) return activeBtn.getAttribute("data-food-type-filter") || "all";
+  return "all";
+}
+
 function getFilteredAndSortedMenuItems() {
   const categoryFilter = (document.getElementById("menu-category-filter")?.value || "all").toLowerCase();
+  const foodTypeFilter = getActiveFoodTypeFilter().toLowerCase();
   const sortOrder = document.getElementById("menu-sort-order")?.value || "name-asc";
 
   let filtered = [...menuItems];
   if (categoryFilter !== "all") {
     filtered = filtered.filter((item) => (item.category || "").toLowerCase() === categoryFilter);
+  }
+  if (foodTypeFilter !== "all") {
+    filtered = filtered.filter((item) => normalizeFoodType(item.foodType) === foodTypeFilter);
   }
 
   filtered.sort((a, b) => {
@@ -194,7 +215,7 @@ function renderMenu() {
 
     const metaRow = document.createElement("div");
     metaRow.className = "menu-card-meta";
-    metaRow.innerHTML = `<span>${item.category || "-"}</span><span>${
+    metaRow.innerHTML = `<span>${item.category || "-"}</span><span>${normalizeFoodType(item.foodType).toUpperCase()}</span><span>${
       item.isAvailable ? "Available" : "Unavailable"
     }</span>`;
     card.appendChild(metaRow);
@@ -218,6 +239,7 @@ function renderMenu() {
     tr.innerHTML = `
       <td>${item.name}</td>
       <td>${item.category || "-"}</td>
+      <td>${normalizeFoodType(item.foodType).toUpperCase()}</td>
       <td>${formatCurrency(item.price)}</td>
       <td>${item.isAvailable ? "Yes" : "No"}</td>
       <td>
@@ -386,6 +408,7 @@ function setCheckoutStep(step) {
 }
 
 function goStep2() {
+  hideInlineOrderSuccess();
   const customer = getCustomerDetails();
   if (!cartItems.length) {
     showToast("Add items before reviewing cart");
@@ -403,6 +426,7 @@ function goStep2() {
 }
 
 function goStep3() {
+  hideInlineOrderSuccess();
   if (!cartItems.length) {
     showToast("Cart is empty");
     return;
@@ -508,10 +532,10 @@ function placeOrder() {
   orders.push(order);
   saveToStorage(STORAGE_KEYS.ORDERS, orders);
 
-  showOrderPlacedModal(order);
+  showInlineOrderSuccess(order);
   showToast("Order placed");
   clearCart();
-  setCheckoutStep(1);
+  setCheckoutStep(3);
 }
 
 function fillPrintBill(order) {
@@ -561,6 +585,34 @@ function showOrderPlacedModal(order) {
   mapLink.style.display = order.locationLink ? "inline" : "none";
   summary.textContent = buildOrderSummaryText(order.paymentMethod);
   modal.classList.remove("hidden");
+}
+
+function showInlineOrderSuccess(order) {
+  const panel = document.getElementById("inline-order-success");
+  if (!panel) return;
+  const amountLine = document.getElementById("inline-qr-amount-line");
+  const msg = document.getElementById("inline-order-success-message");
+  const paymentMode = document.getElementById("inline-order-payment-mode");
+  const mapLink = document.getElementById("inline-order-map-link");
+  const summary = document.getElementById("inline-order-success-summary");
+  amountLine.textContent = `Bill Amount: ${formatCurrency(order.total)}`;
+  paymentMode.textContent = order.paymentMethod;
+  msg.textContent =
+    order.paymentMethod === "UPI"
+      ? "Order placed successfully. Scroll below to see payment and order details."
+      : "Order placed successfully. Scroll below to see full order details.";
+  mapLink.href = order.locationLink || "#";
+  mapLink.style.display = order.locationLink ? "inline" : "none";
+  summary.textContent = buildOrderSummaryText(order.paymentMethod);
+  panel.classList.remove("hidden");
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function hideInlineOrderSuccess() {
+  const panel = document.getElementById("inline-order-success");
+  if (panel) {
+    panel.classList.add("hidden");
+  }
 }
 
 function closeModal(id) {
@@ -757,6 +809,7 @@ function handleMenuFormSubmit(e) {
   const priceField = document.getElementById("menu-price");
   const catField = document.getElementById("menu-category");
   const imgField = document.getElementById("menu-image");
+  const typeField = document.getElementById("menu-food-type");
   const availField = document.getElementById("menu-available");
 
   const name = nameField.value.trim();
@@ -777,6 +830,7 @@ function handleMenuFormSubmit(e) {
       item.name = name;
       item.price = price;
       item.category = catField.value.trim();
+      item.foodType = normalizeFoodType(typeField.value);
       item.image = imgField.value.trim();
       item.isAvailable = availField.checked;
       showToast("Menu item updated");
@@ -788,6 +842,7 @@ function handleMenuFormSubmit(e) {
       name,
       price,
       category: catField.value.trim(),
+      foodType: normalizeFoodType(typeField.value),
       image: imgField.value.trim(),
       isAvailable: availField.checked,
     });
@@ -802,6 +857,7 @@ function handleMenuFormSubmit(e) {
 function resetMenuForm() {
   document.getElementById("menu-form").reset();
   document.getElementById("menu-item-id").value = "";
+  document.getElementById("menu-food-type").value = "veg";
   document.getElementById("menu-available").checked = true;
 }
 
@@ -815,6 +871,7 @@ function handleMenuManageClick(e) {
     document.getElementById("menu-name").value = item.name;
     document.getElementById("menu-price").value = item.price;
     document.getElementById("menu-category").value = item.category || "";
+    document.getElementById("menu-food-type").value = normalizeFoodType(item.foodType);
     document.getElementById("menu-image").value = item.image || "";
     document.getElementById("menu-available").checked = !!item.isAvailable;
     showToast("Editing item");
@@ -930,6 +987,11 @@ function renderReports() {
 
 function initApp() {
   menuItems = loadFromStorage(STORAGE_KEYS.MENU, getDefaultMenu());
+  menuItems = menuItems.map((item) => ({
+    ...item,
+    foodType: normalizeFoodType(item.foodType),
+  }));
+  saveToStorage(STORAGE_KEYS.MENU, menuItems);
   orders = loadFromStorage(STORAGE_KEYS.ORDERS, []);
 
   const dateEl = document.getElementById("current-date");
@@ -970,6 +1032,13 @@ function initApp() {
   });
   document.getElementById("menu-category-filter").addEventListener("change", renderMenu);
   document.getElementById("menu-sort-order").addEventListener("change", renderMenu);
+  document.querySelectorAll(".type-filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".type-filter-btn").forEach((x) => x.classList.remove("active"));
+      btn.classList.add("active");
+      renderMenu();
+    });
+  });
 
   document.querySelectorAll("[data-close='order-success-modal']").forEach((el) => {
     el.addEventListener("click", () => closeModal("order-success-modal"));
@@ -1003,4 +1072,3 @@ function initApp() {
 }
 
 document.addEventListener("DOMContentLoaded", initApp);
-

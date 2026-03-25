@@ -135,6 +135,11 @@
               </select>
             </label>
           </div>
+          <div class="menu-type-buttons" role="group" aria-label="Filter by food type">
+            <button type="button" class="type-filter-btn active" data-food-type-filter="all">All</button>
+            <button type="button" class="type-filter-btn" data-food-type-filter="veg">Veg</button>
+            <button type="button" class="type-filter-btn" data-food-type-filter="non-veg">Non Veg</button>
+          </div>
           <div id="menu-list" class="menu-list">
             <!-- Menu cards rendered by JS -->
           </div>
@@ -181,11 +186,10 @@
               <span id="bill-total">₹0.00</span>
             </div>
           </div>
-          <div class="step-actions">
-            <button id="btn-back-step-1" type="button" class="secondary">Back to menu</button>
-            <button id="btn-clear-cart" type="button" class="secondary">Clear cart</button>
-            <span class="spacer"></span>
-            <button id="btn-next-payment" type="button" class="primary">Next payment</button>
+          <div class="step-actions checkout-action-row">
+            <button id="btn-back-step-1" type="button" class="secondary action-wide">Back to menu</button>
+            <button id="btn-clear-cart" type="button" class="secondary action-wide">Clear cart</button>
+            <button id="btn-next-payment" type="button" class="primary action-wide">Next payment</button>
           </div>
         </section>
       </section>
@@ -214,12 +218,24 @@
             <h3>Order Summary</h3>
             <pre id="step3-order-summary" class="order-summary-text"></pre>
           </div>
-          <div class="step-actions">
-            <button id="btn-back-step-2" type="button" class="secondary">Back to cart</button>
-            <span class="spacer"></span>
-            <button id="btn-copy-order" type="button" class="secondary">Copy order</button>
-            <button id="btn-place-order" type="button" class="primary">Place order</button>
+          <div class="step-actions checkout-action-row">
+            <button id="btn-back-step-2" type="button" class="secondary action-wide">Back to cart</button>
+            <button id="btn-copy-order" type="button" class="secondary action-wide">Copy order</button>
+            <button id="btn-place-order" type="button" class="primary action-wide">Place order</button>
           </div>
+          <section id="inline-order-success" class="inline-success-panel hidden">
+            <h3>Order placed</h3>
+            <p class="meta-line" id="inline-order-success-message"></p>
+            <img src="img/upi-qr-placeholder.png" alt="UPI QR" class="qr-image" />
+            <p class="meta-line" id="inline-qr-amount-line">Bill Amount: ₹0.00</p>
+            <p class="meta-line">Payment: <span id="inline-order-payment-mode">UPI</span></p>
+            <p class="meta-line">UPI ID: <span id="inline-upi-id-text">your-upi-id@bank</span></p>
+            <a id="inline-order-map-link" class="meta-line" href="#" target="_blank" rel="noopener noreferrer">Open delivery map</a>
+            <div class="table-wrapper">
+              <h3>Order Summary</h3>
+              <pre id="inline-order-success-summary" class="order-summary-text"></pre>
+            </div>
+          </section>
         </section>
       </section>
     </section>
@@ -299,6 +315,13 @@
               Category
               <input type="text" id="menu-category" placeholder="Breakfast, Snacks..." />
             </label>
+            <label>
+              Food Type
+              <select id="menu-food-type">
+                <option value="veg">Veg</option>
+                <option value="non-veg">Non Veg</option>
+              </select>
+            </label>
             <label class="wide">
               Image URL / Path
               <input type="text" id="menu-image" placeholder="img/idly.jpg" />
@@ -323,6 +346,7 @@
               <tr>
                 <th>Name</th>
                 <th>Category</th>
+                <th>Type</th>
                 <th>Price</th>
                 <th>Available</th>
                 <th></th>
@@ -482,4 +506,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
