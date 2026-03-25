@@ -8,7 +8,7 @@
   <!-- Google Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Leaflet (Map) -->
   <link
@@ -27,8 +27,9 @@
 </head>
 <body>
   <header class="app-header">
+    <img src="logo.png" alt="Sri Lakshmi Home Foods logo" class="brand-logo" />
     <div>
-      <h1> Sri lakshmi Home Food Cloud Kitchen</h1>
+      <h1>Sri Lakshmi Home Foods</h1>
       <p>Fresh homemade Idly, Puttu, Poori, Dosai, Vada & more</p>
     </div>
     <div class="app-header-meta">
@@ -41,110 +42,186 @@
     <button class="nav-tab active" data-target="order-view">Order</button>
     <button class="nav-tab" data-target="reports-view">Reports</button>
     <button class="nav-tab" data-target="menu-view">Menu Management</button>
+    <button class="nav-tab" data-target="about-view">About Us</button>
   </nav>
 
   <main class="app-main">
     <!-- ORDER VIEW -->
     <section id="order-view" class="view active">
-      <div class="order-layout">
-        <!-- Menu column -->
-        <div class="menu-column">
+      <div class="checkout-steps page-steps">
+        <span id="step-indicator-1" class="step-pill active">1. Details & Menu</span>
+        <span id="step-indicator-2" class="step-pill">2. Review Cart</span>
+        <span id="step-indicator-3" class="step-pill">3. Payment</span>
+      </div>
+
+      <section id="checkout-step-1" class="checkout-page">
+        <section class="address-panel">
+          <div class="panel-header">
+            <h2>Customer Details</h2>
+          </div>
+          <div class="address-grid">
+            <label>
+              Name
+              <input type="text" id="cust-name" placeholder="Customer name" />
+            </label>
+            <label>
+              Phone
+              <input
+                type="tel"
+                id="cust-phone"
+                placeholder="10-digit number"
+                maxlength="10"
+                pattern="[0-9]{10}"
+                inputmode="numeric"
+              />
+            </label>
+            <label>
+              Email
+              <input type="email" id="cust-email" placeholder="name@example.com" />
+            </label>
+            <label class="wide">
+              Flat / House
+              <input type="text" id="cust-flat" placeholder="House / Flat no." />
+            </label>
+            <label class="wide">
+              Street
+              <input type="text" id="cust-street" placeholder="Street" />
+            </label>
+            <label>
+              Area
+              <input type="text" id="cust-area" placeholder="Area" />
+            </label>
+            <label>
+              City
+              <input type="text" id="cust-city" placeholder="City" />
+            </label>
+            <label>
+              Pincode
+              <input type="text" id="cust-pincode" placeholder="Pincode" />
+            </label>
+            <label class="wide">
+              Location Link
+              <input type="text" id="cust-location-link" placeholder="Auto-filled from map" readonly />
+            </label>
+            <label class="wide">
+              Special Instructions
+              <textarea id="cust-comments" rows="3" placeholder="Ex: Less spicy, no onion, call on arrival"></textarea>
+            </label>
+          </div>
+          <div class="location-actions">
+            <button id="btn-use-location" type="button">Use my location</button>
+            <button id="btn-choose-on-map" type="button">Choose on map</button>
+            <span id="location-status" class="meta-line"></span>
+          </div>
+        </section>
+
+        <section class="menu-column fullwidth-panel">
           <div class="panel-header">
             <h2>Menu</h2>
+          </div>
+          <div class="filters-row menu-controls">
+            <label>
+              Category
+              <select id="menu-category-filter">
+                <option value="all">All</option>
+              </select>
+            </label>
+            <label>
+              Prioritize
+              <select id="menu-sort-order">
+                <option value="name-asc">Name A-Z</option>
+                <option value="price-asc">Price Low-High</option>
+                <option value="price-desc">Price High-Low</option>
+              </select>
+            </label>
           </div>
           <div id="menu-list" class="menu-list">
             <!-- Menu cards rendered by JS -->
           </div>
-        </div>
-
-        <!-- Cart + details column -->
-        <div class="cart-column">
-          <div class="panel-header">
-            <h2>Cart &amp; Billing</h2>
+          <div class="step-actions">
+            <span class="spacer"></span>
+            <button id="btn-review-cart" type="button" class="primary">Review cart</button>
           </div>
+        </section>
+      </section>
 
-          <section class="address-panel">
-            <h3>Customer &amp; Address</h3>
-            <div class="address-grid">
-              <label>
-                Name
-                <input type="text" id="cust-name" placeholder="Customer name" />
-              </label>
-              <label>
-                Phone
-                <input type="tel" id="cust-phone" placeholder="10-digit number" />
-              </label>
-              <label class="wide">
-                Flat / House
-                <input type="text" id="cust-flat" placeholder="House / Flat no." />
-              </label>
-              <label class="wide">
-                Street
-                <input type="text" id="cust-street" placeholder="Street" />
-              </label>
-              <label>
-                Area
-                <input type="text" id="cust-area" placeholder="Area" />
-              </label>
-              <label>
-                City
-                <input type="text" id="cust-city" placeholder="City" />
-              </label>
-              <label>
-                Pincode
-                <input type="text" id="cust-pincode" placeholder="Pincode" />
-              </label>
+      <section id="checkout-step-2" class="checkout-page step-hidden">
+        <section class="cart-panel fullwidth-panel">
+          <div class="panel-header">
+            <h2>Your Cart</h2>
+          </div>
+          <div class="cart-table-wrapper">
+            <table class="cart-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cart-body">
+                <!-- Cart rows rendered by JS -->
+              </tbody>
+            </table>
+            <div id="empty-cart-msg" class="empty-state">Cart is empty. Tap a menu item to add.</div>
+          </div>
+          <div class="bill-summary">
+            <div class="bill-line">
+              <span>Subtotal</span>
+              <span id="bill-subtotal">₹0.00</span>
             </div>
-            <div class="location-actions">
-              <button id="btn-use-location" type="button">Use my location</button>
-              <button id="btn-choose-on-map" type="button">Choose on map</button>
-              <span id="location-status" class="meta-line"></span>
+            <div class="bill-line">
+              <span>Tax (0%)</span>
+              <span id="bill-tax">₹0.00</span>
             </div>
-          </section>
+            <div class="bill-line bill-total">
+              <span>Total</span>
+              <span id="bill-total">₹0.00</span>
+            </div>
+          </div>
+          <div class="step-actions">
+            <button id="btn-back-step-1" type="button" class="secondary">Back to menu</button>
+            <button id="btn-clear-cart" type="button" class="secondary">Clear cart</button>
+            <span class="spacer"></span>
+            <button id="btn-next-payment" type="button" class="primary">Next payment</button>
+          </div>
+        </section>
+      </section>
 
-          <section class="cart-panel">
-            <div class="cart-table-wrapper">
-              <table class="cart-table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Total</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="cart-body">
-                  <!-- Cart rows rendered by JS -->
-                </tbody>
-              </table>
-              <div id="empty-cart-msg" class="empty-state">Cart is empty. Tap a menu item to add.</div>
+      <section id="checkout-step-3" class="checkout-page step-hidden">
+        <section class="cart-panel fullwidth-panel">
+          <h3>Order &amp; Payment</h3>
+          <div class="bill-summary">
+            <div class="bill-line">
+              <span>Subtotal</span>
+              <span id="step3-subtotal">₹0.00</span>
             </div>
-
-            <div class="bill-summary">
-              <div class="bill-line">
-                <span>Subtotal</span>
-                <span id="bill-subtotal">₹0.00</span>
-              </div>
-              <div class="bill-line">
-                <span>Tax (0%)</span>
-                <span id="bill-tax">₹0.00</span>
-              </div>
-              <div class="bill-line bill-total">
-                <span>Total</span>
-                <span id="bill-total">₹0.00</span>
-              </div>
+            <div class="bill-line">
+              <span>Total</span>
+              <span id="step3-total">₹0.00</span>
             </div>
-
-            <div class="cart-actions">
-              <button id="btn-clear-cart" type="button" class="secondary">Clear cart</button>
-              <span class="spacer"></span>
-              <button id="btn-pay-now" type="button">Pay now (QR)</button>
-              <button id="btn-save-order" type="button" class="primary">Save &amp; Print bill</button>
+            <div class="bill-line">
+              <label for="payment-method">Payment</label>
+              <select id="payment-method">
+                <option value="UPI">UPI</option>
+                <option value="COD">Cash on Delivery</option>
+              </select>
             </div>
-          </section>
-        </div>
-      </div>
+          </div>
+          <div class="table-wrapper">
+            <h3>Order Summary</h3>
+            <pre id="step3-order-summary" class="order-summary-text"></pre>
+          </div>
+          <div class="step-actions">
+            <button id="btn-back-step-2" type="button" class="secondary">Back to cart</button>
+            <span class="spacer"></span>
+            <button id="btn-copy-order" type="button" class="secondary">Copy order</button>
+            <button id="btn-place-order" type="button" class="primary">Place order</button>
+          </div>
+        </section>
+      </section>
     </section>
 
     <!-- REPORTS VIEW -->
@@ -259,21 +336,54 @@
         </div>
       </section>
     </section>
+
+    <!-- ABOUT VIEW -->
+    <section id="about-view" class="view">
+      <section class="about-us">
+        <div class="about-us-content">
+          <h2>About Us</h2>
+          <p>
+            Sri Lakshmi Home Foods serves fresh, hygienic, home-style meals for families, students, and offices.
+            We provide daily food service and catering with quality ingredients and traditional taste.
+          </p>
+          <p>
+            Service areas include Agaram Main Road, VIT college area, Bharath college area, Ponmar,
+            and nearby apartment communities.
+          </p>
+        </div>
+        <div class="about-us-images">
+          <article class="brand-card">
+            <h3>Business Card</h3>
+            <img src="Businees card.png" alt="Sri Lakshmi Home Foods business card" />
+          </article>
+          <article class="brand-card">
+            <h3>Pamphlet</h3>
+            <img src="pamplet.png" alt="Sri Lakshmi Home Foods pamphlet" />
+          </article>
+        </div>
+      </section>
+    </section>
   </main>
 
-  <!-- QR MODAL -->
-  <div id="qr-modal" class="modal hidden">
-    <div class="modal-backdrop" data-close="qr-modal"></div>
+  <!-- ORDER CONFIRMATION MODAL -->
+  <div id="order-success-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="order-success-modal"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Scan &amp; Pay</h3>
-        <button class="icon-button" data-close="qr-modal">&times;</button>
+        <h3>Order placed</h3>
+        <button class="icon-button" data-close="order-success-modal">&times;</button>
       </div>
       <div class="modal-body qr-body">
         <img src="img/upi-qr-placeholder.png" alt="UPI QR" class="qr-image" />
-        <p class="meta-line">Show this QR to the customer to scan and pay.</p>
-        <p class="meta-line" id="qr-amount-line">Amount: ₹0.00</p>
+        <p class="meta-line" id="order-success-message"></p>
+        <p class="meta-line" id="qr-amount-line">Bill Amount: ₹0.00</p>
+        <p class="meta-line">Payment: <span id="order-payment-mode">UPI</span></p>
         <p class="meta-line">UPI ID: <span id="upi-id-text">your-upi-id@bank</span></p>
+        <a id="order-map-link" class="meta-line" href="#" target="_blank" rel="noopener noreferrer">Open delivery map</a>
+        <div class="table-wrapper">
+          <h3>Order Summary</h3>
+          <pre id="order-success-summary" class="order-summary-text"></pre>
+        </div>
       </div>
     </div>
   </div>
@@ -289,6 +399,54 @@
       <div class="modal-body">
         <div id="map" class="map-container"></div>
         <p class="meta-line">Tap on the map to set delivery location.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT AUTH MODAL -->
+  <div id="report-auth-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="report-auth-modal"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Reports Login</h3>
+      </div>
+      <div class="modal-body">
+        <label>
+          Username
+          <input type="text" id="report-username" placeholder="Enter username" />
+        </label>
+        <label>
+          Password
+          <input type="password" id="report-password" placeholder="Enter password" />
+        </label>
+        <div class="form-actions">
+          <button id="btn-report-login" type="button" class="primary">Login</button>
+          <button type="button" class="secondary" data-close="report-auth-modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENU AUTH MODAL -->
+  <div id="menu-auth-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="menu-auth-modal"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Menu Admin Login</h3>
+      </div>
+      <div class="modal-body">
+        <label>
+          Username
+          <input type="text" id="menu-username" placeholder="Enter username" />
+        </label>
+        <label>
+          Password
+          <input type="password" id="menu-password" placeholder="Enter password" />
+        </label>
+        <div class="form-actions">
+          <button id="btn-menu-login" type="button" class="primary">Login</button>
+          <button type="button" class="secondary" data-close="menu-auth-modal">Cancel</button>
+        </div>
       </div>
     </div>
   </div>

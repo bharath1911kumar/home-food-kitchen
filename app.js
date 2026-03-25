@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
 };
 
 const TAX_PERCENT = 0; // easy to tweak later
+const REPORT_AUTH = { username: "admin", password: "1234" };
+const MENU_AUTH = { username: "admin", password: "1234" };
 
 let menuItems = [];
 let cartItems = [];
@@ -13,6 +15,8 @@ let orders = [];
 let currentOrderLocation = null;
 let leafletMap = null;
 let leafletMarker = null;
+let pendingNavTarget = null;
+let checkoutStep = 1;
 
 function formatCurrency(amount) {
   return `₹${amount.toFixed(2)}`;
@@ -110,6 +114,43 @@ function getDefaultMenu() {
   ];
 }
 
+function getFilteredAndSortedMenuItems() {
+  const categoryFilter = (document.getElementById("menu-category-filter")?.value || "all").toLowerCase();
+  const sortOrder = document.getElementById("menu-sort-order")?.value || "name-asc";
+
+  let filtered = [...menuItems];
+  if (categoryFilter !== "all") {
+    filtered = filtered.filter((item) => (item.category || "").toLowerCase() === categoryFilter);
+  }
+
+  filtered.sort((a, b) => {
+    if (sortOrder === "price-asc") return a.price - b.price;
+    if (sortOrder === "price-desc") return b.price - a.price;
+    return a.name.localeCompare(b.name);
+  });
+
+  return filtered;
+}
+
+function renderMenuCategoryFilter() {
+  const select = document.getElementById("menu-category-filter");
+  if (!select) return;
+
+  const currentValue = select.value || "all";
+  const categories = Array.from(new Set(menuItems.map((item) => item.category).filter(Boolean))).sort();
+  select.innerHTML = `<option value="all">All</option>`;
+
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category.toLowerCase();
+    option.textContent = category;
+    select.appendChild(option);
+  });
+
+  const hasCurrent = Array.from(select.options).some((opt) => opt.value === currentValue);
+  select.value = hasCurrent ? currentValue : "all";
+}
+
 function renderMenu() {
   const list = document.getElementById("menu-list");
   const manageBody = document.getElementById("menu-manage-body");
@@ -125,7 +166,10 @@ function renderMenu() {
   }
   emptyMsg.style.display = "none";
 
-  menuItems.forEach((item) => {
+  renderMenuCategoryFilter();
+  const displayItems = getFilteredAndSortedMenuItems();
+
+  displayItems.forEach((item) => {
     const card = document.createElement("article");
     card.className = "menu-card";
     if (!item.isAvailable) {
@@ -225,8 +269,8 @@ function renderCart() {
   const taxEl = document.getElementById("bill-tax");
   const totalEl = document.getElementById("bill-total");
   const btnClear = document.getElementById("btn-clear-cart");
-  const btnPay = document.getElementById("btn-pay-now");
-  const btnSave = document.getElementById("btn-save-order");
+  const btnNextPayment = document.getElementById("btn-next-payment");
+  const btnReviewCart = document.getElementById("btn-review-cart");
 
   if (!body) return;
 
@@ -235,13 +279,13 @@ function renderCart() {
   if (!cartItems.length) {
     emptyMsg.style.display = "block";
     btnClear.disabled = true;
-    btnPay.disabled = true;
-    btnSave.disabled = true;
+    btnNextPayment.disabled = true;
+    btnReviewCart.disabled = true;
   } else {
     emptyMsg.style.display = "none";
     btnClear.disabled = false;
-    btnPay.disabled = false;
-    btnSave.disabled = false;
+    btnNextPayment.disabled = false;
+    btnReviewCart.disabled = false;
   }
 
   cartItems.forEach((line) => {
@@ -295,17 +339,21 @@ function renderCart() {
   subtotalEl.textContent = formatCurrency(totals.subtotal);
   taxEl.textContent = formatCurrency(totals.tax);
   totalEl.textContent = formatCurrency(totals.total);
+  renderStep3Summary();
 }
 
 function getCustomerDetails() {
   return {
     name: document.getElementById("cust-name").value.trim(),
     phone: document.getElementById("cust-phone").value.trim(),
+    email: document.getElementById("cust-email").value.trim(),
     flat: document.getElementById("cust-flat").value.trim(),
     street: document.getElementById("cust-street").value.trim(),
     area: document.getElementById("cust-area").value.trim(),
     city: document.getElementById("cust-city").value.trim(),
     pincode: document.getElementById("cust-pincode").value.trim(),
+    locationLink: document.getElementById("cust-location-link").value.trim(),
+    comments: document.getElementById("cust-comments").value.trim(),
   };
 }
 
@@ -317,19 +365,123 @@ function buildAddressText(details) {
   if (details.area) parts.push(details.area);
   if (details.city) parts.push(details.city);
   if (details.pincode) parts.push(`PIN: ${details.pincode}`);
+  if (details.locationLink) parts.push(`Map: ${details.locationLink}`);
+  if (details.comments) parts.push(`Instructions: ${details.comments}`);
   return parts.join(", ");
 }
 
-function saveOrderAndPrint() {
+function setCheckoutStep(step) {
+  checkoutStep = step;
+  document.getElementById("checkout-step-1").classList.toggle("step-hidden", step !== 1);
+  document.getElementById("checkout-step-2").classList.toggle("step-hidden", step !== 2);
+  document.getElementById("checkout-step-3").classList.toggle("step-hidden", step !== 3);
+
+  document.getElementById("step-indicator-1").classList.toggle("active", step === 1);
+  document.getElementById("step-indicator-2").classList.toggle("active", step === 2);
+  document.getElementById("step-indicator-3").classList.toggle("active", step === 3);
+
+  if (step === 3) {
+    renderStep3Summary();
+  }
+}
+
+function goStep2() {
+  const customer = getCustomerDetails();
+  if (!cartItems.length) {
+    showToast("Add items before reviewing cart");
+    return;
+  }
+  if (!customer.name || !customer.phone) {
+    showToast("Enter customer name and phone");
+    return;
+  }
+  if (!isValidPhoneNumber(customer.phone)) {
+    showToast("Phone number must be exactly 10 digits");
+    return;
+  }
+  setCheckoutStep(2);
+}
+
+function goStep3() {
+  if (!cartItems.length) {
+    showToast("Cart is empty");
+    return;
+  }
+  setCheckoutStep(3);
+}
+
+function formatRupeeSimple(amount) {
+  return Number.isInteger(amount) ? `₹${amount}` : `₹${amount.toFixed(2)}`;
+}
+
+function getPaymentLabel(paymentMethod) {
+  return paymentMethod === "COD" ? "Cash on Delivery" : "UPI";
+}
+
+function isValidPhoneNumber(phone) {
+  return /^[0-9]{10}$/.test(phone);
+}
+
+function buildOrderSummaryText(paymentMethod) {
+  const customer = getCustomerDetails();
+  const totals = getCartTotals();
+  const location = customer.locationLink || "Not set";
+  const paymentLabel = getPaymentLabel(paymentMethod);
+  const lines = [
+    "sri lakshmi Home foods - Daily Menu",
+    `Name: ${customer.name || "-"}`,
+    `Phone: ${customer.phone || "-"}`,
+    `Email: ${customer.email || "-"}`,
+    `Location: ${location}`,
+    `Payment: ${paymentLabel}`,
+    "",
+    "Items:",
+    ...cartItems.map((item) => `* ${item.name} x${item.quantity} = ${formatRupeeSimple(item.lineTotal)}`),
+    "",
+    `${formatRupeeSimple(totals.total)}`,
+  ];
+  return lines.join("\n");
+}
+
+function renderStep3Summary() {
+  const subtotalEl = document.getElementById("step3-subtotal");
+  const totalEl = document.getElementById("step3-total");
+  const paymentMethod = document.getElementById("payment-method")?.value || "UPI";
+  const summaryEl = document.getElementById("step3-order-summary");
+  if (!subtotalEl || !totalEl || !summaryEl) return;
+
+  const totals = getCartTotals();
+  subtotalEl.textContent = formatCurrency(totals.subtotal);
+  totalEl.textContent = formatCurrency(totals.total);
+  summaryEl.textContent = buildOrderSummaryText(paymentMethod);
+}
+
+function copyOrderSummary() {
+  const paymentMethod = document.getElementById("payment-method")?.value || "UPI";
+  const text = buildOrderSummaryText(paymentMethod);
+  navigator.clipboard.writeText(text).then(
+    () => showToast("Order summary copied"),
+    () => showToast("Copy failed")
+  );
+}
+
+function placeOrder() {
   if (!cartItems.length) {
     showToast("Cart is empty");
     return;
   }
 
   const customer = getCustomerDetails();
+  const paymentMethod = document.getElementById("payment-method").value;
+  const paymentLabel = getPaymentLabel(paymentMethod);
   const totals = getCartTotals();
   const now = new Date();
   const orderId = `ORD-${now.getTime()}`;
+
+  if (!customer.name || !isValidPhoneNumber(customer.phone)) {
+    showToast("Enter valid customer details before placing order");
+    return;
+  }
 
   const order = {
     id: orderId,
@@ -346,16 +498,20 @@ function saveOrderAndPrint() {
     customerName: customer.name,
     address: buildAddressText(customer),
     phone: customer.phone,
+    email: customer.email,
+    comments: customer.comments,
+    paymentMethod: paymentLabel,
     location: currentOrderLocation,
+    locationLink: customer.locationLink,
   };
 
   orders.push(order);
   saveToStorage(STORAGE_KEYS.ORDERS, orders);
 
-  fillPrintBill(order);
-  showToast("Order saved");
+  showOrderPlacedModal(order);
+  showToast("Order placed");
   clearCart();
-  window.print();
+  setCheckoutStep(1);
 }
 
 function fillPrintBill(order) {
@@ -387,12 +543,23 @@ function fillPrintBill(order) {
   addr.textContent = order.address || "-";
 }
 
-function openQrModal() {
-  const modal = document.getElementById("qr-modal");
+function showOrderPlacedModal(order) {
+  const modal = document.getElementById("order-success-modal");
   if (!modal) return;
   const amountLine = document.getElementById("qr-amount-line");
-  const totals = getCartTotals();
-  amountLine.textContent = `Amount: ${formatCurrency(totals.total)}`;
+  const msg = document.getElementById("order-success-message");
+  const paymentMode = document.getElementById("order-payment-mode");
+  const mapLink = document.getElementById("order-map-link");
+  const summary = document.getElementById("order-success-summary");
+  amountLine.textContent = `Bill Amount: ${formatCurrency(order.total)}`;
+  paymentMode.textContent = order.paymentMethod;
+  msg.textContent =
+    order.paymentMethod === "UPI"
+      ? "Order placed. Email summary was delivered. Please complete payment using UPI."
+      : "Order placed. Email summary was delivered. Payment mode: Cash on Delivery.";
+  mapLink.href = order.locationLink || "#";
+  mapLink.style.display = order.locationLink ? "inline" : "none";
+  summary.textContent = buildOrderSummaryText(order.paymentMethod);
   modal.classList.remove("hidden");
 }
 
@@ -417,12 +584,18 @@ function initMap() {
 
   leafletMap.on("click", (e) => {
     setMapLocation(e.latlng.lat, e.latlng.lng);
+    reverseGeocodeAndFill(e.latlng.lat, e.latlng.lng);
   });
 }
 
 function setMapLocation(lat, lng) {
   currentOrderLocation = { lat, lng };
   const status = document.getElementById("location-status");
+  const linkInput = document.getElementById("cust-location-link");
+  const mapsLink = `https://maps.google.com/?q=${lat},${lng}`;
+  if (linkInput) {
+    linkInput.value = mapsLink;
+  }
   if (status) {
     status.textContent = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
   }
@@ -431,6 +604,37 @@ function setMapLocation(lat, lng) {
     leafletMarker = L.marker([lat, lng]).addTo(leafletMap);
   } else {
     leafletMarker.setLatLng([lat, lng]);
+  }
+}
+
+async function reverseGeocodeAndFill(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error("Reverse geocode failed");
+    }
+    const data = await response.json();
+    const address = data.address || {};
+
+    const road = address.road || address.pedestrian || address.neighbourhood || "";
+    const area = address.suburb || address.village || address.county || "";
+    const city = address.city || address.town || address.state_district || address.state || "";
+    const pincode = address.postcode || "";
+
+    const streetInput = document.getElementById("cust-street");
+    const areaInput = document.getElementById("cust-area");
+    const cityInput = document.getElementById("cust-city");
+    const pinInput = document.getElementById("cust-pincode");
+
+    if (streetInput && !streetInput.value.trim()) streetInput.value = road;
+    if (areaInput && !areaInput.value.trim()) areaInput.value = area;
+    if (cityInput && !cityInput.value.trim()) cityInput.value = city;
+    if (pinInput && !pinInput.value.trim()) pinInput.value = pincode;
+  } catch {
+    // Keep manual entry as fallback
   }
 }
 
@@ -446,6 +650,7 @@ function useCurrentLocation() {
     (pos) => {
       const { latitude, longitude } = pos.coords;
       setMapLocation(latitude, longitude);
+      reverseGeocodeAndFill(latitude, longitude);
       if (leafletMap) {
         leafletMap.setView([latitude, longitude], 16);
       }
@@ -476,8 +681,23 @@ function chooseOnMap() {
 function handleNavClick(e) {
   const btn = e.currentTarget;
   const targetId = btn.getAttribute("data-target");
+  if (targetId === "reports-view") {
+    pendingNavTarget = targetId;
+    openReportAuthModal();
+    return;
+  }
+  if (targetId === "menu-view") {
+    pendingNavTarget = targetId;
+    openMenuAuthModal();
+    return;
+  }
+  activateView(targetId);
+}
+
+function activateView(targetId) {
+  const targetBtn = document.querySelector(`.nav-tab[data-target="${targetId}"]`);
   document.querySelectorAll(".nav-tab").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
+  if (targetBtn) targetBtn.classList.add("active");
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   const view = document.getElementById(targetId);
   if (view) view.classList.add("active");
@@ -486,6 +706,48 @@ function handleNavClick(e) {
     renderReportFilters();
     renderReports();
   }
+}
+
+function openReportAuthModal() {
+  const modal = document.getElementById("report-auth-modal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function openMenuAuthModal() {
+  const modal = document.getElementById("menu-auth-modal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function handleReportLogin() {
+  const user = document.getElementById("report-username")?.value.trim();
+  const pass = document.getElementById("report-password")?.value.trim();
+  if (user === REPORT_AUTH.username && pass === REPORT_AUTH.password) {
+    closeModal("report-auth-modal");
+    document.getElementById("report-username").value = "";
+    document.getElementById("report-password").value = "";
+    const target = pendingNavTarget || "reports-view";
+    pendingNavTarget = null;
+    activateView(target);
+    showToast("Reports unlocked");
+    return;
+  }
+  showToast("Invalid report credentials");
+}
+
+function handleMenuLogin() {
+  const user = document.getElementById("menu-username")?.value.trim();
+  const pass = document.getElementById("menu-password")?.value.trim();
+  if (user === MENU_AUTH.username && pass === MENU_AUTH.password) {
+    closeModal("menu-auth-modal");
+    document.getElementById("menu-username").value = "";
+    document.getElementById("menu-password").value = "";
+    const target = pendingNavTarget || "menu-view";
+    pendingNavTarget = null;
+    activateView(target);
+    showToast("Menu management unlocked");
+    return;
+  }
+  showToast("Invalid menu credentials");
 }
 
 function handleMenuFormSubmit(e) {
@@ -693,18 +955,42 @@ function initApp() {
     if (window.confirm("Clear cart?")) clearCart();
   });
 
-  document.getElementById("btn-pay-now").addEventListener("click", openQrModal);
-  document.getElementById("btn-save-order").addEventListener("click", saveOrderAndPrint);
+  document.getElementById("btn-review-cart").addEventListener("click", goStep2);
+  document.getElementById("btn-back-step-1").addEventListener("click", () => setCheckoutStep(1));
+  document.getElementById("btn-next-payment").addEventListener("click", goStep3);
+  document.getElementById("btn-back-step-2").addEventListener("click", () => setCheckoutStep(2));
+  document.getElementById("btn-copy-order").addEventListener("click", copyOrderSummary);
+  document.getElementById("btn-place-order").addEventListener("click", placeOrder);
+  document.getElementById("payment-method").addEventListener("change", renderStep3Summary);
 
   document.getElementById("btn-use-location").addEventListener("click", useCurrentLocation);
   document.getElementById("btn-choose-on-map").addEventListener("click", chooseOnMap);
+  document.getElementById("cust-phone").addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+  });
+  document.getElementById("menu-category-filter").addEventListener("change", renderMenu);
+  document.getElementById("menu-sort-order").addEventListener("change", renderMenu);
 
-  document.querySelectorAll("[data-close='qr-modal']").forEach((el) => {
-    el.addEventListener("click", () => closeModal("qr-modal"));
+  document.querySelectorAll("[data-close='order-success-modal']").forEach((el) => {
+    el.addEventListener("click", () => closeModal("order-success-modal"));
   });
   document.querySelectorAll("[data-close='map-modal']").forEach((el) => {
     el.addEventListener("click", () => closeModal("map-modal"));
   });
+  document.querySelectorAll("[data-close='report-auth-modal']").forEach((el) => {
+    el.addEventListener("click", () => {
+      closeModal("report-auth-modal");
+      pendingNavTarget = null;
+    });
+  });
+  document.querySelectorAll("[data-close='menu-auth-modal']").forEach((el) => {
+    el.addEventListener("click", () => {
+      closeModal("menu-auth-modal");
+      pendingNavTarget = null;
+    });
+  });
+  document.getElementById("btn-report-login").addEventListener("click", handleReportLogin);
+  document.getElementById("btn-menu-login").addEventListener("click", handleMenuLogin);
 
   document.getElementById("menu-form").addEventListener("submit", handleMenuFormSubmit);
   document.getElementById("btn-reset-menu-form").addEventListener("click", resetMenuForm);
@@ -713,6 +999,7 @@ function initApp() {
   document.getElementById("btn-refresh-report").addEventListener("click", renderReports);
 
   renderReportFilters();
+  setCheckoutStep(1);
 }
 
 document.addEventListener("DOMContentLoaded", initApp);
